@@ -280,10 +280,25 @@ def audio_info(source: PathOrBuf) -> AudioInfo:
 # Opus is carried in Ogg for both .opus and .ogg filenames.
 OPUS_CODEC_ARGS = ["-c:a", "libopus", "-b:a", "64k"]
 OPUS_SAMPLE_RATE = 48000
+# VBR ~190 kbps, the same quality the dub exporter uses for MP3.
+MP3_CODEC_ARGS = ["-c:a", "libmp3lame", "-q:a", "2"]
 
 
 async def encode_ogg_opus(wav: bytes | str | os.PathLike[str]) -> bytes:
     """Transcode a WAV render or saved WAV to Ogg/Opus; never return WAV on error."""
+    return await _encode_with_ffmpeg(
+        wav, "Ogg/Opus", ["-ar", str(OPUS_SAMPLE_RATE), *OPUS_CODEC_ARGS, "-f", "ogg"],
+    )
+
+
+async def encode_mp3(wav: bytes | str | os.PathLike[str]) -> bytes:
+    """Transcode a WAV render or saved WAV to MP3; never return WAV on error."""
+    return await _encode_with_ffmpeg(wav, "MP3", [*MP3_CODEC_ARGS, "-f", "mp3"])
+
+
+async def _encode_with_ffmpeg(
+    wav: bytes | str | os.PathLike[str], label: str, output_args: list[str],
+) -> bytes:
     import asyncio
     from core.failure import strip_ffmpeg_banner
     from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
@@ -291,7 +306,7 @@ async def encode_ogg_opus(wav: bytes | str | os.PathLike[str]) -> bytes:
     ffmpeg = await asyncio.to_thread(find_ffmpeg)
     if not ffmpeg:
         raise RuntimeError(
-            "Ogg/Opus output requires ffmpeg. Install it (Settings → Audio tools) "
+            f"{label} output requires ffmpeg. Install it (Settings → Audio tools) "
             "or set FFMPEG_PATH."
         )
     temporary = None
@@ -305,8 +320,7 @@ async def encode_ogg_opus(wav: bytes | str | os.PathLike[str]) -> bytes:
             src = os.fspath(wav)
         cmd = [
             ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin",
-            "-i", src, "-ar", str(OPUS_SAMPLE_RATE),
-            *OPUS_CODEC_ARGS, "-f", "ogg", "pipe:1",
+            "-i", src, *output_args, "pipe:1",
         ]
         rc, out, err = await run_ffmpeg(cmd, timeout=300.0)
     finally:
@@ -314,7 +328,7 @@ async def encode_ogg_opus(wav: bytes | str | os.PathLike[str]) -> bytes:
             os.unlink(temporary)
     if rc != 0 or not out:
         detail = strip_ffmpeg_banner((err or b"").decode("utf-8", "replace")).strip()[-300:]
-        raise RuntimeError(f"Ogg/Opus encoding failed: {detail or f'ffmpeg exit {rc}'}")
+        raise RuntimeError(f"{label} encoding failed: {detail or f'ffmpeg exit {rc}'}")
     return out
 
 
