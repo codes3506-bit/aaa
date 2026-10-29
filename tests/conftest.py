@@ -92,6 +92,26 @@ import pytest
 import warnings as _warnings
 
 
+def force_cpu_host(monkeypatch) -> None:
+    """Pin ``detect_host_caps()`` to CPU so native OmniVoice stubs stay in-process.
+
+    On Apple Silicon, ``get_backend_class("omnivoice")`` rewrites to the MPS
+    crash-isolation sidecar and ``preload_model`` skips native warm-up. Tests
+    that stub ``get_model`` / ``_load_model_with_timeout`` must force a non-MPS
+    host or they hit Hugging Face offline instead of the stub.
+    """
+    from core.device_caps import HostCaps, detect_host_caps
+
+    caps = HostCaps(family="cpu", available_families=("cpu",))
+    monkeypatch.setattr("core.device_caps.detect_host_caps", lambda: caps)
+    detect_host_caps.cache_clear()
+
+
+@pytest.fixture
+def cpu_host(monkeypatch):
+    force_cpu_host(monkeypatch)
+
+
 # ── Persisted user settings: per-test isolation ────────────────────────────
 # The hermetic data dir above is per SESSION, so prefs.json and the user-env
 # file are shared by every test in the run. Anything a test persists there —

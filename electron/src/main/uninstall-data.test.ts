@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -11,6 +11,11 @@ afterEach(async () => {
     created.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
 });
+
+/** scanUninstallTargets realpaths present dirs; macOS /var → /private/var. */
+async function physical(path: string): Promise<string> {
+  return realpath(path);
+}
 
 async function fixture(): Promise<UninstallRoots & { root: string }> {
   const root = await mkdtemp(join(tmpdir(), 'VoiceStudio-uninstall-test-'));
@@ -32,15 +37,16 @@ async function fixture(): Promise<UninstallRoots & { root: string }> {
 
 it('scans every install-owned location and keeps a shared model cache opt-in', async () => {
   const roots = await fixture();
+  const models = await physical(roots.models);
   const targets = await scanUninstallTargets(roots);
   expect(targets.map((target) => target.key)).toEqual(['data', 'env', 'logs', 'userenv', 'models']);
   expect(targets.every((target) => target.exists && target.size_bytes === 4)).toBe(true);
   expect(targets.find((target) => target.key === 'models')?.shared).toBe(true);
   expect((await createUninstallPlan(targets, false, join(roots.root, 'home'))).paths).not.toContain(
-    roots.models,
+    models,
   );
   expect((await createUninstallPlan(targets, true, join(roots.root, 'home'))).paths).toContain(
-    roots.models,
+    models,
   );
 });
 
@@ -54,9 +60,11 @@ it('refuses unsigned arbitrary roots and collapses descendants under an owned pa
     logs: join(roots.environment, 'logs'),
   });
   const plan = await createUninstallPlan(targets, false, join(roots.root, 'home'));
-  expect(plan.refused).toContain(arbitrary);
-  expect(plan.paths).toContain(roots.environment);
+  expect(plan.refused).toContain(await physical(arbitrary));
+  expect(plan.paths).toContain(await physical(roots.environment));
+  // Nested logs under the environment parent are collapsed, not listed alone.
   expect(plan.paths).not.toContain(join(roots.environment, 'logs'));
+  expect(plan.paths.every((path) => !path.endsWith(`${join('shell', 'logs')}`))).toBe(true);
 });
 
 it('does not offer a nested private model directory as a separately shared target', async () => {
@@ -80,16 +88,19 @@ it('lists a setup-chosen location by its runtime folders so data and models stay
     models: join(chosen, 'models'),
     runtimeEnvironment: entries,
   });
+  const physicalData = await physical(data);
+  const physicalEntries = await Promise.all(entries.map(physical));
   const paths = targets.map((target) => target.path);
-  expect(paths).toEqual(expect.arrayContaining([data, ...entries]));
+  expect(paths).toEqual(expect.arrayContaining([physicalData, ...physicalEntries]));
   expect(paths).not.toContain(chosen);
+  expect(paths).not.toContain(await physical(chosen));
   const plan = await createUninstallPlan(
-    targets.filter((t) => t.path !== data),
+    targets.filter((t) => t.path !== physicalData),
     false,
     null,
   );
-  expect(plan.paths).toEqual(expect.arrayContaining(entries));
-  expect(plan.paths).not.toContain(data);
+  expect(plan.paths).toEqual(expect.arrayContaining(physicalEntries));
+  expect(plan.paths).not.toContain(physicalData);
 });
 
 it('protects a shared model cache reached through a data-path alias', async () => {

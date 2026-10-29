@@ -5,6 +5,8 @@ shared libraries. These tests force that failure and check that the pydub
 fallback returns the same kind of tensor: mono, (1, T), float, correctly scaled
 for every WAV sample width.
 """
+import shutil
+
 import numpy as np
 import pytest
 import soundfile as sf
@@ -13,6 +15,11 @@ import torch
 from omnivoice.utils import audio as audio_utils
 
 PEAK = 0.5
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("ffprobe") is None and shutil.which("avprobe") is None,
+    reason="pydub fallback needs ffprobe (install ffmpeg)",
+)
 
 
 def _write_sine(path, *, subtype, rate=16000, seconds=0.5, channels=1):
