@@ -213,7 +213,8 @@ class VirusTotalTests(unittest.TestCase):
                 patch.object(vt, "Client", return_value=client), patch.object(vt, "source_archive") as archive, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(vt.main(["--no-wait"]), 0)
-        client.upload.assert_called_once_with(self.path)
+        # main() resolves VIRUSTOTAL_FILE; on macOS that expands /var → /private/var.
+        client.upload.assert_called_once_with(self.path.resolve())
         client.wait.assert_not_called()
         archive.assert_not_called()
         self.assertIn("https://www.virustotal.com/gui/file/", output.getvalue())

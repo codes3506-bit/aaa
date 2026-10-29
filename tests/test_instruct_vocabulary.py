@@ -18,7 +18,9 @@ def test_catalogue_reports_vocabulary_per_engine():
     assert cat["mlx-audio"]["instruct_vocabulary"] == "freeform"
 
 
-def test_every_omnivoice_entry_is_tags():
+def test_every_omnivoice_entry_is_tags(cpu_host):
+    # Force CPU so the explicit omnivoice-subprocess catalogue entry stays
+    # visible (on MPS it is hidden because omnivoice already is that sidecar).
     entries = [e for bid, e in _catalogue().items() if bid.startswith("omnivoice")]
     assert len(entries) >= 3
     assert {e["instruct_vocabulary"] for e in entries} == {"tags"}

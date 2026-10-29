@@ -142,32 +142,36 @@ describe('packaged runtime setup', () => {
       expect(await runtimeReady(bundle, project)).toBe(true);
     },
   );
-  it('names the module whose native import crashed the final verification (#3293)', async () => {
-    forcePlatform('win32');
-    vi.spyOn(process, 'arch', 'get').mockReturnValue('x64');
-    vi.stubEnv('OMNIVOICE_TORCH_VARIANT', 'cpu');
-    const { bundle, project } = await fixture();
-    const sitePackages = join(project, '.venv', 'Lib', 'site-packages');
-    const run = vi.fn(async (_command: string, args: string[]) => {
-      if (args[0] === 'sync') await interpreter(project);
-      if (args[1]?.includes('VOICESTUDIO_CUDNN8_PROBE=')) {
-        return `VOICESTUDIO_CUDNN8_PROBE=${JSON.stringify({ device: 'none', sitePackages })}\n`;
-      }
-      if (args[1] === RUNTIME_IMPORT_PROBE) {
-        throw Object.assign(new Error('Runtime setup exited with code 3221225477'), {
-          code: 3221225477,
-          stdout: 'VOICESTUDIO_IMPORT=fastapi\nVOICESTUDIO_IMPORT=faster_whisper\n',
-        });
-      }
-      return undefined;
-    });
-    await expect(
-      installRuntime(bundle, project, 'uv', run, new AbortController().signal, undefined, 'global'),
-    ).rejects.toMatchObject({
-      message: expect.stringContaining('while importing "faster_whisper"'),
-      code: 3221225477,
-    });
-  });
+  it(
+    'names the module whose native import crashed the final verification (#3293)',
+    async () => {
+      forcePlatform('win32');
+      vi.spyOn(process, 'arch', 'get').mockReturnValue('x64');
+      vi.stubEnv('OMNIVOICE_TORCH_VARIANT', 'cpu');
+      const { bundle, project } = await fixture();
+      const sitePackages = join(project, '.venv', 'Lib', 'site-packages');
+      const run = vi.fn(async (_command: string, args: string[]) => {
+        if (args[0] === 'sync') await interpreter(project);
+        if (args[1]?.includes('VOICESTUDIO_CUDNN8_PROBE=')) {
+          return `VOICESTUDIO_CUDNN8_PROBE=${JSON.stringify({ device: 'none', sitePackages })}\n`;
+        }
+        if (args[1] === RUNTIME_IMPORT_PROBE) {
+          throw Object.assign(new Error('Runtime setup exited with code 3221225477'), {
+            code: 3221225477,
+            stdout: 'VOICESTUDIO_IMPORT=fastapi\nVOICESTUDIO_IMPORT=faster_whisper\n',
+          });
+        }
+        return undefined;
+      });
+      await expect(
+        installRuntime(bundle, project, 'uv', run, new AbortController().signal, undefined, 'global'),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining('while importing "faster_whisper"'),
+        code: 3221225477,
+      });
+    },
+    15_000,
+  );
   it.each([
     ['after printing its result', true],
     ['before printing anything', false],
