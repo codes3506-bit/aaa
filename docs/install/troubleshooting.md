@@ -1509,6 +1509,14 @@ program it tried to launch, quotes what the backend last printed (or says it
 printed nothing, or that nothing was spawned), and adds a localized hint under
 the message:
 
+If Windows refuses to launch the selected Python interpreter during the initial
+dependency check, the failure names that interpreter and uses the same launch
+guidance below, without automatically reinstalling it. With no custom runtime
+selected, VoiceStudio can still reuse another compatible runtime; a blocked,
+unused legacy runtime does not prevent setup of a missing default runtime.
+An explicitly selected runtime remains authoritative. Missing interpreters and
+import errors still use the normal setup or repair flow.
+
 When the app recognises the cause it also names it in one line and puts the
 matching action first: **Choose another folder** for a missing environment, a
 write-permission error or a cloud-synced folder (installed app only; a source

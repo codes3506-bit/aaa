@@ -378,7 +378,7 @@ final class SmokeTests: XCTestCase {
     @MainActor private func dismissUsingDone(_ app: XCUIApplication) {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         let done = app.buttons["keyboard.done"]
-        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        XCTAssertTrue(done.wait(for: \.isHittable, toEqual: true, timeout: 5))
         done.tap()
         assertKeyboardDismissed(app)
     }

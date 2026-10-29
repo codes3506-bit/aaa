@@ -200,6 +200,10 @@ and disappear after tapping it; Home's presence behind the consent sheet does
 not establish that consent has finished.
 The combined CI job allows 90 minutes for cold builds and validation; individual
 UI-test readiness deadlines remain bounded separately.
+The keyboard smoke waits for the shared Done control to become hittable before
+its single tap, then checks that the keyboard disappears within the existing
+deadline. This readiness check does not establish a product responder-routing
+defect.
 
 ## Live previews
 
