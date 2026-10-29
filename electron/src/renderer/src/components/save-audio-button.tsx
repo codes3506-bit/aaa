@@ -8,6 +8,10 @@ import { Button, buttonVariants } from './ui/button';
 import { saveExport } from '@/lib/export-history';
 import { cn } from '@/lib/utils';
 
+/**
+ * Saves a backend audio file through the native save dialog. One click saves
+ * `url` (WAV); with `mp3Url`, a format menu beside it also offers MP3.
+ */
 export function SaveAudioButton({
   url,
   mp3Url,

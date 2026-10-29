@@ -80,3 +80,34 @@ def test_mp3_url_does_not_follow_render_symlink_outside_outputs(monkeypatch, tmp
     except (OSError, NotImplementedError):
         pytest.skip("symlinks unavailable")
     assert _client(monkeypatch, outputs).get("/audio/ab12cd34.mp3").status_code == 404
+
+
+@pytest.mark.parametrize("encoder", ["encode_mp3", "encode_ogg_opus"])
+def test_encoder_failure_detail_hides_local_paths(monkeypatch, tmp_path, encoder):
+    from services import audio_io, ffmpeg_utils
+
+    home = os.path.expanduser("~")
+    src = os.path.join(home, "private-project", "ab12cd34.wav")
+
+    async def failing_ffmpeg(cmd, timeout):
+        return 1, b"", f"{src}: Invalid data found when processing input\n".encode()
+
+    monkeypatch.setattr(ffmpeg_utils, "find_ffmpeg", lambda: "ffmpeg")
+    monkeypatch.setattr(ffmpeg_utils, "run_ffmpeg", failing_ffmpeg)
+    with pytest.raises(RuntimeError) as failure:
+        asyncio.run(getattr(audio_io, encoder)(src))
+    message = str(failure.value)
+    assert "ab12cd34.wav: Invalid data" in message
+    assert home not in message and "private-project" not in message
+
+
+@pytest.mark.parametrize("path,media_type", [
+    ("/audio/{audio_id}.mp3", "audio/mpeg"),
+    ("/audio/{audio_id}.ogg", "audio/ogg"),
+    ("/audio/{audio_id}.opus", "audio/ogg"),
+])
+def test_encoded_audio_routes_document_binary_audio(monkeypatch, tmp_path, path, media_type):
+    schema = _client(monkeypatch, tmp_path).app.openapi()
+    content = schema["paths"][path]["get"]["responses"]["200"]["content"]
+    assert list(content) == [media_type]
+    assert content[media_type]["schema"]["format"] == "binary"

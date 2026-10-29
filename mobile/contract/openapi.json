@@ -8819,8 +8819,11 @@
     "responses": {
      "200": {
       "content": {
-       "application/json": {
-        "schema": {}
+       "audio/mpeg": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
        }
       },
       "description": "Successful Response"
@@ -8857,8 +8860,11 @@
     "responses": {
      "200": {
       "content": {
-       "application/json": {
-        "schema": {}
+       "audio/ogg": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
        }
       },
       "description": "Successful Response"
@@ -8895,8 +8901,11 @@
     "responses": {
      "200": {
       "content": {
-       "application/json": {
-        "schema": {}
+       "audio/ogg": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
        }
       },
       "description": "Successful Response"
